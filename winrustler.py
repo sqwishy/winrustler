@@ -13,24 +13,32 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+''' winrustler is a python script that facilitates moving windows on MS Windows
+winrustler can be invoked from a command prompt in three different manners.
+
+winrustler.py [title [x y]]
+ Without title, winrustler enters interactive mode and prompts for a selection
+  from a list of window. The input there can be an index or a substring of one
+  of the window titles (case insensitive comparison).
+ If title is given, it will select a window by its title as previously
+  described and move it to x, y which default to 0, 0
+
+winrustler can also imported as a library, although I have no idea why you
+ would want to do that.
+'''
+
 import sys
 import ctypes
 from ctypes import wintypes
 
 user32 = ctypes.windll.user32
 
-WindowEnumFunc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-
-SetWindowPos = user32.SetWindowPos
-
 
 class WindowMover(object):
     ''' Finds windows and lets you move them
     '''
-    _windows = {}
-
     def __init__(self):
-        pass
+        self._windows = {}
 
     @property
     def windows(self):
@@ -39,7 +47,7 @@ class WindowMover(object):
     def fetch_windows(self):
         self._windows.clear()
 
-        @WindowEnumFunc
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         def cb(hwnd, _):
             if not user32.IsWindowVisible(hwnd):
                 return True
