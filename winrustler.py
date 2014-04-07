@@ -41,7 +41,7 @@ class WindowCollection(dict):
 
             buf = ctypes.create_string_buffer(255)
             user32.GetWindowTextA(hwnd, buf, 255)
-            self[hwnd] = buf.value
+            self[hwnd] = buf.value.decode()
             return True
 
         user32.EnumWindows(cb, 0)
@@ -50,7 +50,7 @@ class WindowCollection(dict):
         ''' Case insensitive search of window thingy
         '''
         match = match.lower()
-        for hwnd, title in self.iteritems():
+        for hwnd, title in self.items():
             if match in title.lower():
                 return hwnd
         raise ValueError('No window with matching title found')
