@@ -41,7 +41,7 @@ class WindowCollection(dict):
 
             buf = ctypes.create_string_buffer(255)
             user32.GetWindowTextA(hwnd, buf, 255)
-            self[hwnd] = buf.value.decode()
+            self[hwnd] = buf.value.decode('latin1')
             return True
 
         user32.EnumWindows(cb, 0)
