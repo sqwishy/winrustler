@@ -36,5 +36,5 @@ def run(collection, args):
 
     SWP_NOSIZE = 0x0001 # Flag to ignore the size params
     x, y = _translate_coords(hwnd, x, y)
-    print('Moving "%s" to (%i, %i)' % (collection[hwnd], x, y))
+    print('Moving "{}" to ({}, {})'.format(collection[hwnd], x, y))
     user32.SetWindowPos(hwnd, 0, x, y, 0, 0, SWP_NOSIZE)
