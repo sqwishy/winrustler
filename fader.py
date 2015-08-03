@@ -2,8 +2,6 @@ import argparse
 import ctypes
 from ctypes import wintypes
 
-__all__ = ['parser', 'do']
-
 GWL_EXSTYLE = -20
 WS_EX_LAYERED = 0x00080000
 
@@ -31,3 +29,5 @@ def run(collection, args):
             LWA_COLORKEY|LWA_ALPHA,
             ):
         raise ctypes.WinError()
+
+__all__ = [parser, do]

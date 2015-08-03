@@ -24,6 +24,7 @@ would want to do that.
 import sys
 import argparse
 import ctypes
+import re
 from ctypes import wintypes
 
 user32 = ctypes.windll.user32
@@ -46,14 +47,27 @@ class WindowCollection(dict):
 
         user32.EnumWindows(cb, 0)
 
-    def search(self, match):
-        ''' Case insensitive search of window thingy
+    def multi_search(self, pat):
         '''
-        match = match.lower()
-        for hwnd, title in self.items():
-            if match in title.lower():
-                return hwnd
-        raise ValueError('No window with matching title found')
+        Case insensitive regex search of window thingy.
+        Returns, a dict of hwnd, window title pairs.
+        '''
+        return dict(filter(
+            lambda i: re.search(pat, i[1], re.I) is not None,
+            self.items(),
+        ))
+
+    def search(self, pat):
+        '''
+        Like multi_search but will throw an exception if it receives more or
+        fewer than one result. And only returns the hwnd.
+        '''
+        r = self.multi_search(pat)
+        if len(r) > 1:
+            raise ValueError('Multiple matches found: %s' % r)
+        elif not r:
+            raise ValueError('No window with matching title found')
+        return r.popitem()[0]
 
 
 if __name__ == '__main__':
