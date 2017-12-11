@@ -6,6 +6,13 @@ from winrustler.winconsts import *
 
 user32 = ctypes.windll.user32
 
+    
+def get_window_title(hwnd):
+    # TODO GetWindowTextLength
+    buf = ctypes.create_unicode_buffer(255)
+    user32.GetWindowTextW(hwnd, buf, 254)
+    return buf.value
+
 
 class WindowCollection(dict):
 
@@ -20,11 +27,7 @@ class WindowCollection(dict):
         def cb(hwnd, _):
             if not user32.IsWindowVisible(hwnd):
                 return True
-
-            # TODO GetWindowTextLength
-            buf = ctypes.create_unicode_buffer(255)
-            user32.GetWindowTextW(hwnd, buf, 254)
-            self[hwnd] = buf.value
+            self[hwnd] = get_window_title(hwnd)
             return True
 
         user32.EnumWindows(cb, 0)

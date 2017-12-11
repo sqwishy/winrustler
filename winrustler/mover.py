@@ -50,4 +50,6 @@ class MoveWindow(object):
     def run(self):
         if self.move_viewport:
             x, y = _translate_coords(self.hwnd, self.x, self.y)
+        else:
+            x, y = self.x, self.y
         user32.SetWindowPos(self.hwnd, 0, x, y, 0, 0, SWP_NOSIZE)

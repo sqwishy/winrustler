@@ -1,7 +1,12 @@
+""" hi
+"""
+
 import sys
 import os.path
 import logging
 import functools
+
+import attr
 
 from PyQt5.QtCore import (
         QObject,
@@ -20,6 +25,8 @@ from PyQt5.QtWidgets import (
         QDialog,
         QMainWindow,
         QMessageBox,
+        QAction,
+        QSizePolicy,
 )
 
 from PyQt5.QtWinExtras import (
@@ -27,7 +34,7 @@ from PyQt5.QtWinExtras import (
 )
 
 from winrustler.core import REGISTRY
-from winrustler.windows import WindowCollection
+from winrustler.windows import WindowCollection, get_window_title
 from winrustler.mover import MoveWindow
 
 VERSION = 420
@@ -88,6 +95,12 @@ def get_window_icon(hwnd):
     return icon
 
 
+@attr.s(frozen=True)
+class Suggestion(object):
+    search = attr.ib()
+    rustle = attr.ib()
+
+
 class RustlerWindow(QDialog):
 
     rustle = pyqtSignal(object)
@@ -131,6 +144,7 @@ class RustlerWindow(QDialog):
         self._layout.addRow("&Top", self._y)
         self._layout.addRow(self._move_viewport)
         self._layout.addRow(self._bb)
+        self._layout.setSizeConstraint(QFormLayout.SetFixedSize)
         self.setLayout(self._layout)
 
     def _on_clicked(self, button):
@@ -156,23 +170,50 @@ class RustlerTray(QSystemTrayIcon):
 
     rustle = pyqtSignal(object)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(app, *args, **kwargs)
         self.rustle_icon = QIcon(os.path.join(RES_DIR, '1f412.png'))
         self.about_icon = QIcon(os.path.join(RES_DIR, '1f49f.png'))
         self.exit_icon = QIcon()
 
         self.menu = QMenu(parent=None)
-        self.menu.addSeparator()
-        self.menu.addAction(self.rustle_icon, '&Rustle...', self.show_window)
-        self.menu.addAction(self.about_icon, '&About...', self._about)
-        self.menu.addAction(self.exit_icon, '&Exit', self._exit)
+        self.separator = self.menu.addSeparator()
+        self.rustle_act = self.menu.addAction(self.rustle_icon, '&Rustle...', self.show_window)
+        self.about_act = self.menu.addAction(self.about_icon, '&About...', self._about)
+        self.exit_act = self.menu.addAction(self.exit_icon, '&Exit', self._exit)
 
         self.setContextMenu(self.menu)
         self.activated.connect(self._icon_clicky)
 
+        self.suggest = []
         self.window = None
         self.setIcon(self.rustle_icon)
+
+    def add_suggestion(self, suggestion):
+        #try:
+        #    replace = next(s for s in self.suggest if s.value())
+        #except StopIteration:
+        #    else:
+        before = self.suggest[-1] if self.suggest else self.separator
+        icon = get_window_icon(suggestion.rustle.hwnd)
+        msg = "Move {s.search} to {s.rustle.x}, {s.rustle.y}.".format(s=suggestion)
+        act = QAction(icon, msg, self.menu)
+        act.setData(suggestion)
+        act.triggered.connect(self._do_suggestion)
+        self.suggest.append(act)
+        self.menu.insertAction(before, act)
+        if len(self.suggest) > 2:
+            self.menu.removeAction(self.suggest.pop(0))
+
+    def _do_suggestion(self):
+        suggestion = self.sender().data()
+        try:
+            hwnd = next(hwnd for (hwnd, title) in WindowCollection().items() if title == suggestion.search)
+        except StopIteration:
+            self.showMessage("Yikes!", "Couldn't find a window matching %r." % suggestion.search)
+        else:
+            rustle = attr.evolve(suggestion.rustle, hwnd=hwnd)
+            self.rustle.emit(rustle)
 
     def _icon_clicky(self, reason):
         if reason == QSystemTrayIcon.Trigger:  # Left-click
@@ -207,23 +248,41 @@ class WinRustlerApp(QApplication):
 
     #rustle = pyqtSignal(object)
     rustled = pyqtSignal(object)
+    suggested = pyqtSignal(object)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.suggestions = []
 
     def event(self, e):
         # This is here just so we can go into the interpreter in case SIGINT.
         return super().event(e)
 
-    def do_rustling(self, req):
+    def do_rustling(self, rustle):
         try:
-            req.run()
+            rustle.run()
         except (SystemExit, KeyboardInterrupt):
             raise
         except:
-            logger.exception("Unhandled exception moving %s", wc[hwnd])
+            logger.exception("Unhandled exception doing %s", rustle)
         else:
-            self.rustled.emit(req)
+            self.rustled.emit(rustle)
+            suggestion = self.create_rustle_suggestion(rustle, self.suggestions)
+            self.suggested.emit(suggestion)
+
+    def create_rustle_suggestion(self, rustle, suggestions):
+        """ Something was rustled, make a suggestion for repeating...
+        """
+        search = get_window_title(rustle.hwnd)
+        return Suggestion(search, rustle)
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--show', action='store_true')
+    args = parser.parse_args()
+
     if not QSystemTrayIcon.isSystemTrayAvailable():
         raise Exception("System tray not available.")
 
@@ -239,9 +298,11 @@ if __name__ == "__main__":
     tray.show()
     tray.rustle.connect(app.do_rustling)
     app.rustled.connect(tray.show_rustle_message)
+    app.suggested.connect(tray.add_suggestion)
     app.setWindowIcon(tray.icon())
 
-    #tray.show_window()
+    if args.show:
+        tray.show_window()
 
     print("Lets go!")
     try:
