@@ -32,7 +32,6 @@ from PyQt5.QtWidgets import (
 
 from winrustler.core import REGISTRY
 from winrustler.winapi import WindowDiscovery, get_window_title
-from winrustler.mover import MoveWindow
 from winrustler.ui.winapi import get_window_icon, WinHooker
 
 VERSION = 420
@@ -54,6 +53,9 @@ RES_DIR = os.path.join(os.path.dirname(__file__), 'res')
 logger = logging.getLogger(__name__)
 
 
+def icon(filename):
+    return QIcon(os.path.join(RES_DIR, filename))
+
 
 def log_exceptions(fn):
     @functools.wraps(fn)
@@ -73,27 +75,6 @@ class Suggestion(object):
     rustle = attr.ib()
 
 
-class SyncToComboBox(object):
-
-    def __init__(self, model, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = model
-        self.added_items = {}
-
-    def sync(self, adds, removes):
-        from PyQt5.QtGui import QStandardItem
-        logger.debug("Resyncing ComboBox model, adds=%r, removes=%r", adds, removes)
-        for hwnd in adds:
-            item = QStandardItem(get_window_icon(hwnd), get_window_title(hwnd))
-            item.setData(hwnd, Qt.UserRole)
-            self.model.appendRow(item)
-            self.added_items[hwnd] = item
-        for hwnd in removes:
-            item = self.added_items.pop(hwnd)
-            row = self.model.indexFromItem(item).row()
-            self.model.takeItem(row)
-
-
 class RustlerWindow(QDialog):
 
     rustle = pyqtSignal(object)
@@ -102,24 +83,27 @@ class RustlerWindow(QDialog):
         super().__init__(*args, **kwargs)
         self.setWindowTitle("WinRustler")
 
-        from PyQt5.QtWidgets import QComboBox
-        from PyQt5.QtGui import QStandardItemModel
-        from PyQt5.QtCore import QSortFilterProxyModel
-        self._window_select = QComboBox(self)
-        self._window_select_proxy = QSortFilterProxyModel(self._window_select)
-        self._window_select_model = QStandardItemModel(0, 1, self._window_select_proxy)
-        self._window_select_proxy.setSourceModel(self._window_select_model)
-        self._window_select_proxy.setFilterRegExp('.+')
-        self._window_select.setModel(self._window_select_proxy)
+        from .widgets import WindowSelect, MoveControls#, MatchSelect
 
-        from PyQt5.QtWidgets import QSpinBox, QCheckBox, QLabel
-        self._description = QLabel("<p>Move a window by setting the the top-left \
-                of the window some number of pixels away from the top-left of \
-                the desktop.</p>", self)
-        self._x = QSpinBox(self, value=0, minimum=-2**16, maximum=2**16)
-        self._y = QSpinBox(self, value=0, minimum=-2**16, maximum=2**16)
-        self._move_viewport = QCheckBox("Set position of &internal viewport", self)
-        self._move_viewport.setCheckState(Qt.Checked)
+        self._select = WindowSelect(self)
+        #from PyQt5.QtWidgets import QPushButton
+        #self._match_select = QPushButton(icon('1f984.png'), "", self)
+        #menu = QMenu(self._match_select)
+        #menu.addAction("hi")
+        #self._match_select.setMenu(menu)
+
+        #self._match = WindowMatch(self)
+
+        #from PyQt5.QtWidgets import QTabWidget
+        #self._window_tab = QTabWidget(self)
+        #self._window_tab.addTab(self._select, icon('1f44b.png'), "&Selection")
+        #self._window_tab.addTab(self._match, icon('1f50d.png'), "&Match")
+
+        self._move = MoveControls(self)
+
+        from PyQt5.QtWidgets import QTabWidget
+        self._function_tab = QTabWidget(self)
+        self._function_tab.addTab(self._move, icon('1f4d0.png'), "M&ove")
 
         from PyQt5.QtWidgets import QDialogButtonBox
         self._bb = QDialogButtonBox(self)
@@ -131,40 +115,60 @@ class RustlerWindow(QDialog):
         self._apply_and_close = self._bb.addButton('&Apply && Close', QDialogButtonBox.AcceptRole)
         self._close = self._bb.addButton(QDialogButtonBox.Close)
 
-        from PyQt5.QtWidgets import QFormLayout
-        self._layout = QFormLayout(self)
-        self._layout.addRow(self._description)
-        self._layout.addRow("&Window", self._window_select)
-        self._layout.addRow("&Left", self._x)
-        self._layout.addRow("&Top", self._y)
-        self._layout.addRow(self._move_viewport)
-        self._layout.addRow(self._bb)
-        self._layout.setSizeConstraint(QFormLayout.SetFixedSize)
-        self.setLayout(self._layout)
+        #from PyQt5.QtWidgets import QFormLayout
+        #self._layout = QFormLayout(self)
+        #self._layout.addRow(self._description)
+        ##self._layout.addRow("&Window", self._window_select)
+        ##self._layout.addRow("&Left", self._x)
+        ##self._layout.addRow("&Top", self._y)
+        #self._layout.addRow(self._move_viewport)
+        #self._layout.addRow(self._bb)
+        #self._layout.setSizeConstraint(QFormLayout.SetFixedSize)
+        from PyQt5.QtWidgets import QVBoxLayout
+        self._layout = QVBoxLayout(self)
+        from PyQt5.QtWidgets import QHBoxLayout
+        self._select_layout = QHBoxLayout()
+        self._select_layout.addWidget(self._select, stretch=1)
+        #self._select_layout.addWidget(self._match_select)
+        #self._layout.addWidget(self._window_tab)
+        self._layout.addLayout(self._select_layout)
+        #self._layout.addWidget(self._select)
+        #self._layout.addWidget(self._match_select)
+        self._layout.addWidget(self._function_tab)
+        self._layout.addWidget(self._bb)
+        self._layout.setSizeConstraint(QVBoxLayout.SetFixedSize)
+        #self.setLayout(self._layout)
 
-        self.combo_sync = SyncToComboBox(self._window_select_model)
-        # TODO this is ugly
-        app.windows.refresh()
-        self.combo_sync.sync(app.windows.discovered, set())
-        app.windows_discovered.connect(self.combo_sync.sync)
+        self._select.updated.connect(self._refresh_engagement)
+        #self._match.updated.connect(self._refresh_engagement)
+        self._move.updated.connect(self._refresh_engagement)
+        self._refresh_engagement()
+
+    def sync_windows(self, *args):
+        self._select.sync_windows(*args)
+
+    def _refresh_engagement(self):
+        is_acceptable = self.request() is not None
+        self._apply.setEnabled(is_acceptable)
+        self._apply_and_close.setEnabled(is_acceptable)
 
     def _on_clicked(self, button):
         from PyQt5.QtWidgets import QDialogButtonBox
         if button == self._apply:
-            self.rustle.emit(self.request)
+            self.rustle.emit(self.request())
         elif button == self._apply_and_close:
-            self.rustle.emit(self.request)
+            self.rustle.emit(self.request())
             self.accept()
         elif button == self._close:
             self.reject()
         else:
             raise NotImplementedError()
 
-    @property
     def request(self):
-        hwnd = self._window_select.currentData()
-        return MoveWindow(hwnd, self._x.value(), self._y.value(),
-                self._move_viewport.checkState() == Qt.Checked)
+        #hwnd = self._window_tab.currentWidget().hwnd()
+        hwnd = self._select.hwnd()
+        if hwnd is not None:
+            return self._function_tab.currentWidget().window_request(hwnd)
 
     def showEvent(self, event):
         settings = QSettings("WinRustler Corp.", "WinRustler")
@@ -185,8 +189,8 @@ class RustlerTray(QSystemTrayIcon):
 
     def __init__(self, app, *args, **kwargs):
         super().__init__(app, *args, **kwargs)
-        self.rustle_icon = QIcon(os.path.join(RES_DIR, '1f412.png'))
-        self.about_icon = QIcon(os.path.join(RES_DIR, '1f49f.png'))
+        self.rustle_icon = icon('1f412.png')
+        self.about_icon = icon('1f49f.png')
         self.exit_icon = QIcon()
 
         self.menu = QMenu(parent=None)
@@ -239,6 +243,7 @@ class RustlerTray(QSystemTrayIcon):
             self.window.setAttribute(Qt.WA_DeleteOnClose)
             self.window.rustle.connect(self.rustle)
             self.window.destroyed.connect(self._window_destroyed)
+            self.app.tell_windows_and_connect(self.window.sync_windows)
         self.window.show()
         self.window.raise_()
         self.window.activateWindow()
@@ -247,7 +252,7 @@ class RustlerTray(QSystemTrayIcon):
         icon = get_window_icon(req.hwnd)
         title = get_window_title(req.hwnd)
         msg = "Moved {title} to {req.x} x {req.y}.".format(**locals())
-        self.showMessage("Hello world", msg, icon)
+        self.showMessage("I moved a window.", msg, icon)
 
     def _window_destroyed(self, ptr):
         self.window = None
@@ -280,16 +285,27 @@ class WinRustlerApp(QApplication):
     #rustle = pyqtSignal(object)
     rustled = pyqtSignal(object)
     suggested = pyqtSignal(object)
+    # Tells you of hwnds that are newly added and removed.
+    # For use with something like `SyncToComboBox.sync()`.
     windows_discovered = pyqtSignal(set, set)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.windows = WindowDiscovery(self.windows_discovered.emit)
         self.discovery_timer = QTimer(self, interval=200, singleShot=True)  # refresh debounce
-        self.discovery_timer.timeout.connect(self.windows.refresh)
         self.hooker = WinHooker(self)
+        # Use a windows event hook to determine when we might want to update
+        # the list of windows. Connect it to the debounce timer.
         self.hooker.event.connect(self.discovery_timer.start)
+        # When this debounce timer fires, we tell the window discovery to do
+        # update its list of windows.
+        self.discovery_timer.timeout.connect(self.windows.refresh)
+
         self.suggesty = SuggestiveRustles(self)
+
+    def tell_windows_and_connect(self, slot):
+        slot(app.windows.discovered, set())
+        self.windows_discovered.connect(slot)
 
     def event(self, e):
         # This is here just so we can go into the interpreter in case SIGINT.
@@ -310,6 +326,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--show', action='store_true')
+    parser.add_argument('qt_args', nargs='*')
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG)
 
@@ -323,7 +340,8 @@ if __name__ == "__main__":
         qApp.quit()
     signal.signal(signal.SIGINT, quit_on_sigint)
 
-    app = WinRustlerApp(sys.argv, quitOnLastWindowClosed=False)
+    qt_args = [sys.argv[0]] + args.qt_args
+    app = WinRustlerApp(qt_args, quitOnLastWindowClosed=False)
     app.startTimer(100)  # So the interpreter can handle SIGINT
     tray = RustlerTray(app)
     tray.show()
@@ -333,6 +351,10 @@ if __name__ == "__main__":
     app.setWindowIcon(tray.icon())
 
     if args.show:
+        from .widgets import ComposeMatch
+        #m = ComposeMatch()
+        #m.show()
+        #app.tell_windows_and_connect(m.sync_windows)
         tray.show_window()
 
     print("Lets go!")

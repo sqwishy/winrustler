@@ -23,18 +23,33 @@ would want to do that.
 import sys
 import argparse
 
-from winrustler.core import get_module
-from winrustler.windows import WindowCollection
+from winrustler.core import REGISTRY
+from winrustler.winapi import WindowDiscovery, search
+
+# Imported for their side effects ...
+from winrustler import deborder, mover, fader
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('function')
+    parser.add_argument('window', help="Regular expression matching on a window title.")
+    subparsers = parser.add_subparsers(help='Thing to execute.')
+    subparsers.required = True
+    subparsers.dest = 'module'
 
-    args, remaining = parser.parse_known_args()
-    module = get_module(args.function)
-    args = module.parser.parse_args(remaining)
-    module.run_from_args(WindowCollection(), args)
+    #args, remaining = parser.parse_known_args()
+    for module in REGISTRY:
+        subparser = module.add_subparser(subparsers)
+        subparser.set_defaults(module=module)
+    #module = get_module(args.function)
+    args = parser.parse_args()
+    hwnds = WindowDiscovery.get_current_hwnds()
+    hwnd, title = search(hwnds, args.window)
+    # TODO this is awkward ...
+    kwargs = vars(args).copy()
+    del kwargs['window']
+    del kwargs['module']
+    args.module(hwnd=hwnd, **kwargs).run()
 
 
 if __name__ == '__main__':

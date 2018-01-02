@@ -2,7 +2,6 @@
 Moves the given window such that the viewport/client area (stuff
 inside the window borders) is shown at the given x, y coords
 '''
-import argparse
 import ctypes
 from ctypes import wintypes
 
@@ -12,11 +11,6 @@ from winrustler.core import register_module, FIELD_HELP
 from winrustler.winconsts import *
 
 user32 = ctypes.windll.user32
-
-parser = argparse.ArgumentParser()
-parser.add_argument('window', type=str)
-parser.add_argument('x', type=int)
-parser.add_argument('y', type=int)
 
 
 def _translate_coords(hwnd, x, y):
@@ -46,6 +40,13 @@ class MoveWindow(object):
     x = attr.ib()
     y = attr.ib()
     move_viewport = attr.ib(default=True) #metadata={FIELD_HELP: ""})
+
+    @classmethod
+    def add_subparser(cls, subparsers):
+        parser = subparsers.add_parser('move')
+        parser.add_argument('x', type=int)
+        parser.add_argument('y', type=int)
+        return parser
 
     def run(self):
         if self.move_viewport:

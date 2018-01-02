@@ -9,20 +9,23 @@ from winrustler.winconsts import *
 
 user32 = ctypes.windll.user32
 
-parser = argparse.ArgumentParser()
-parser.add_argument('window', type=str)
-parser.add_argument('opacity', type=int, help='Opaque at 255')
-
 
 def from_args(collection, args):
     hwnd = collection.search(args.window)
     return FadeWindow(hwnd, args.opacity)
 
 
+@register_module()
 @attr.s(frozen=True)
 class FadeWindow(object):
     hwnd = attr.ib()
     opacity = attr.ib()
+
+    @classmethod
+    def add_subparser(cls, subparsers):
+        parser = subparsers.add_parser('fade')
+        parser.add_argument('opacity', type=int, help='Opaque at 255')
+        return parser
 
     def run(self):
         style = user32.GetWindowLongA(self.hwnd, GWL_EXSTYLE)

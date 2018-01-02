@@ -9,18 +9,20 @@ from winrustler.winconsts import *
 
 user32 = ctypes.windll.user32
 
-parser = argparse.ArgumentParser()
-parser.add_argument('window', type=str)
-
-
 def from_args(collection, args):
     hwnd = collection.search(args.window)
     return DeborderWindow(hwnd)
 
 
+@register_module()
 @attr.s(frozen=True)
 class DeborderWindow(object):
     hwnd = attr.ib()
+
+    @classmethod
+    def add_subparser(cls, subparsers):
+        parser = subparsers.add_parser('deborder')
+        return parser
 
     def run(self):
         style = user32.GetWindowLongA(self.hwnd, GWL_STYLE)
