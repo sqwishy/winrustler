@@ -83,7 +83,7 @@ class RustlerWindow(QDialog):
         super().__init__(*args, **kwargs)
         self.setWindowTitle("WinRustler")
 
-        from .widgets import WindowSelect, MoveControls#, MatchSelect
+        from .widgets import WindowSelect, MoveControls, FadeControls#, MatchSelect
 
         self._select = WindowSelect(self)
         #from PyQt5.QtWidgets import QPushButton
@@ -100,10 +100,12 @@ class RustlerWindow(QDialog):
         #self._window_tab.addTab(self._match, icon('1f50d.png'), "&Match")
 
         self._move = MoveControls(self)
+        self._fade = FadeControls(self)
 
         from PyQt5.QtWidgets import QTabWidget
         self._function_tab = QTabWidget(self)
         self._function_tab.addTab(self._move, icon('1f4d0.png'), "M&ove")
+        self._function_tab.addTab(self._fade, icon('1f47b.png'), "F&ade")
 
         from PyQt5.QtWidgets import QDialogButtonBox
         self._bb = QDialogButtonBox(self)
@@ -165,10 +167,11 @@ class RustlerWindow(QDialog):
             raise NotImplementedError()
 
     def request(self):
-        #hwnd = self._window_tab.currentWidget().hwnd()
-        hwnd = self._select.hwnd()
-        if hwnd is not None:
-            return self._function_tab.currentWidget().window_request(hwnd)
+        hwnd = self._select.hwnd
+        tab = self._function_tab.currentWidget() 
+        if tab is not None:
+            hwnd = self._select.hwnd()
+            return tab.window_request(hwnd)
 
     def showEvent(self, event):
         settings = QSettings("WinRustler Corp.", "WinRustler")
@@ -251,8 +254,16 @@ class RustlerTray(QSystemTrayIcon):
     def show_rustle_message(self, req):
         icon = get_window_icon(req.hwnd)
         title = get_window_title(req.hwnd)
-        msg = "Moved {title} to {req.x} x {req.y}.".format(**locals())
-        self.showMessage("I moved a window.", msg, icon)
+        from winrustler.mover import MoveWindow
+        from winrustler.fader import FadeWindow
+        if isinstance(req, MoveWindow):
+            msg = "Moved {title} to {req.x} x {req.y}.".format(**locals())
+        elif isinstance(req, FadeWindow):
+            msg = "Set {title} opacity to {req.opacity}.".format(**locals())
+        else:
+            assert False, req
+            msg = "Did something, not sure what."
+        self.showMessage("I did something.", msg, icon)
 
     def _window_destroyed(self, ptr):
         self.window = None

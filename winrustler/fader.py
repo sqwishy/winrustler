@@ -29,13 +29,17 @@ class FadeWindow(object):
 
     def run(self):
         style = user32.GetWindowLongA(self.hwnd, GWL_EXSTYLE)
-        style |= WS_EX_LAYERED
+        if self.opacity >= 255:
+            style &= ~WS_EX_LAYERED
+        else:
+            style |= WS_EX_LAYERED
         if 0 == user32.SetWindowLongA(self.hwnd, GWL_EXSTYLE, style):
             raise ctypes.WinError()
-        if 0 == user32.SetLayeredWindowAttributes(
-                self.hwnd,
-                wintypes.RGB(255, 255, 255),
-                self.opacity,
-                LWA_COLORKEY|LWA_ALPHA,
-                ):
-            raise ctypes.WinError()
+        if self.opacity < 255:
+            if 0 == user32.SetLayeredWindowAttributes(
+                    self.hwnd,
+                    wintypes.RGB(255, 255, 255),
+                    self.opacity,
+                    LWA_COLORKEY|LWA_ALPHA,
+                    ):
+                raise ctypes.WinError()
