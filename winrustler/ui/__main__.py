@@ -4,16 +4,15 @@
 import sys
 import os.path
 import logging
-import functools
 
 import attr
 
 from PyQt5.QtCore import (
         QObject,
         pyqtSignal,
+        pyqtSlot,
         Qt,
         QTimer,
-        QSettings,
 )
 from PyQt5.QtGui import (
         QIcon,
@@ -33,6 +32,7 @@ from PyQt5.QtWidgets import (
 from winrustler.core import REGISTRY
 from winrustler.winapi import WindowDiscovery, get_window_title
 from winrustler.ui.winapi import get_window_icon, WinHooker
+from winrustler.ui.state import save_window_state, restore_window_state
 
 VERSION = 420
 ABOUT_TEXT = """\
@@ -57,20 +57,8 @@ def icon(filename):
     return QIcon(os.path.join(RES_DIR, filename))
 
 
-def log_exceptions(fn):
-    @functools.wraps(fn)
-    def inner(*args, **kwargs):
-        try:
-            fn(*args, **kwargs)
-        except (SystemExit, KeyboardInterrupt):
-            raise
-        except:
-            logger.exception("Unhandled exception in %r", fn)
-    return inner
-
-
 @attr.s(frozen=True)
-class Suggestion(object):
+class History(object):
     search = attr.ib()
     rustle = attr.ib()
 
@@ -79,20 +67,18 @@ class RustlerWindow(QDialog):
 
     rustle = pyqtSignal(object)
 
-    def __init__(self, app, *args, **kwargs):
+    def __init__(self, winset, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowTitle("WinRustler")
 
-        from .widgets import WindowSelect, MoveControls, FadeControls#, MatchSelect
+        from .widgets.select import WindowSelect
+        from .widgets.rustle import MoveControls, FadeControls
 
         self._select = WindowSelect(self)
-        #from PyQt5.QtWidgets import QPushButton
-        #self._match_select = QPushButton(icon('1f984.png'), "", self)
-        #menu = QMenu(self._match_select)
-        #menu.addAction("hi")
-        #self._match_select.setMenu(menu)
-
-        #self._match = WindowMatch(self)
+        from PyQt5.QtWidgets import QPushButton
+        self._match_select = QPushButton(icon('1f984.png'), "", self, shortcut="Alt+m")
+        self._match_select.clicked.connect(self._show_match)
 
         #from PyQt5.QtWidgets import QTabWidget
         #self._window_tab = QTabWidget(self)
@@ -111,50 +97,45 @@ class RustlerWindow(QDialog):
         self._bb = QDialogButtonBox(self)
         self._bb.accepted.connect(self.accept)
         self._bb.rejected.connect(self.reject)
-        self._bb.clicked.connect(self._on_clicked)
+        self._bb.clicked.connect(self._bb_on_clicked)
 
         self._apply = self._bb.addButton(QDialogButtonBox.Apply)
         self._apply_and_close = self._bb.addButton('&Apply && Close', QDialogButtonBox.AcceptRole)
         self._close = self._bb.addButton(QDialogButtonBox.Close)
 
-        #from PyQt5.QtWidgets import QFormLayout
-        #self._layout = QFormLayout(self)
-        #self._layout.addRow(self._description)
-        ##self._layout.addRow("&Window", self._window_select)
-        ##self._layout.addRow("&Left", self._x)
-        ##self._layout.addRow("&Top", self._y)
-        #self._layout.addRow(self._move_viewport)
-        #self._layout.addRow(self._bb)
-        #self._layout.setSizeConstraint(QFormLayout.SetFixedSize)
         from PyQt5.QtWidgets import QVBoxLayout
         self._layout = QVBoxLayout(self)
         from PyQt5.QtWidgets import QHBoxLayout
         self._select_layout = QHBoxLayout()
         self._select_layout.addWidget(self._select, stretch=1)
-        #self._select_layout.addWidget(self._match_select)
-        #self._layout.addWidget(self._window_tab)
+        self._select_layout.addWidget(self._match_select)
         self._layout.addLayout(self._select_layout)
-        #self._layout.addWidget(self._select)
-        #self._layout.addWidget(self._match_select)
         self._layout.addWidget(self._function_tab)
         self._layout.addWidget(self._bb)
         self._layout.setSizeConstraint(QVBoxLayout.SetFixedSize)
-        #self.setLayout(self._layout)
 
         self._select.updated.connect(self._refresh_engagement)
-        #self._match.updated.connect(self._refresh_engagement)
         self._move.updated.connect(self._refresh_engagement)
         self._refresh_engagement()
 
-    def sync_windows(self, *args):
-        self._select.sync_windows(*args)
+        self.winset = winset
+        self.winset.tell_and_connect(self.sync_windows)
+
+    @pyqtSlot(object, object)
+    def sync_windows(self, *args, **kwargs):
+        """
+        This needs to exist so that it can be a slot and Qt disconnects it
+        properly, otherwise PyQt start holding reference to things and fucks
+        everything up.
+        """
+        self._select.sync_windows(*args, **kwargs)
 
     def _refresh_engagement(self):
         is_acceptable = self.request() is not None
         self._apply.setEnabled(is_acceptable)
         self._apply_and_close.setEnabled(is_acceptable)
 
-    def _on_clicked(self, button):
+    def _bb_on_clicked(self, button):
         from PyQt5.QtWidgets import QDialogButtonBox
         if button == self._apply:
             self.rustle.emit(self.request())
@@ -166,6 +147,14 @@ class RustlerWindow(QDialog):
         else:
             raise NotImplementedError()
 
+    def _show_match(self):
+        #from .widgets import ComposeMatch
+        from .widgets.match import MatchDialog
+        m = MatchDialog(self.winset, parent=self)
+        #m = ComposeMatch(self.winset)
+        #app.tell_windows_and_connect(m.sync_windows)
+        print(m.exec_())
+
     def request(self):
         hwnd = self._select.hwnd
         tab = self._function_tab.currentWidget() 
@@ -174,24 +163,20 @@ class RustlerWindow(QDialog):
             return tab.window_request(hwnd)
 
     def showEvent(self, event):
-        settings = QSettings("WinRustler Corp.", "WinRustler")
-        geometry = settings.value("RustlerWindow/geometry")
-        if geometry is not None:
-            self.restoreGeometry(geometry)
+        restore_window_state(self)
         return super().showEvent(event)
 
-    def closeEvent(self, event):
-        settings = QSettings("WinRustler Corp.", "WinRustler")
-        settings.setValue("RustlerWindow/geometry", self.saveGeometry())
-        return super().closeEvent(event)
+    def hideEvent(self, event):
+        save_window_state(self)
+        return super().hideEvent(event)
 
 
 class RustlerTray(QSystemTrayIcon):
 
     rustle = pyqtSignal(object)
 
-    def __init__(self, app, *args, **kwargs):
-        super().__init__(app, *args, **kwargs)
+    def __init__(self, winset, *args, **kwargs):
+        super().__init__(winset, *args, **kwargs)
         self.rustle_icon = icon('1f412.png')
         self.about_icon = icon('1f49f.png')
         self.exit_icon = QIcon()
@@ -206,7 +191,7 @@ class RustlerTray(QSystemTrayIcon):
         self.activated.connect(self._icon_clicky)
 
         #self.suggest = []
-        self.app = app
+        self.winset = winset
         self.window = None
         self.setIcon(self.rustle_icon)
 
@@ -242,11 +227,9 @@ class RustlerTray(QSystemTrayIcon):
 
     def show_window(self):
         if self.window is None:
-            self.window = RustlerWindow(self.app)
-            self.window.setAttribute(Qt.WA_DeleteOnClose)
+            self.window = RustlerWindow(self.winset)
             self.window.rustle.connect(self.rustle)
             self.window.destroyed.connect(self._window_destroyed)
-            self.app.tell_windows_and_connect(self.window.sync_windows)
         self.window.show()
         self.window.raise_()
         self.window.activateWindow()
@@ -291,6 +274,26 @@ class SuggestiveRustles(QObject):
         return Suggestion(search, rustle)
 
 
+class WindowSet(QObject):
+    """ This is very much like the WindowDiscovery but it has a signal ...
+    """
+
+    discovered = pyqtSignal(set, set)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data = set()
+
+    def tell_and_connect(self, slot):
+        slot(self.data, ())
+        self.discovered.connect(slot)
+
+    def sync(self, adds, removes):
+        self.data.update(adds)
+        self.data.difference_update(removes)
+        self.discovered.emit(adds, removes)
+
+
 class WinRustlerApp(QApplication):
 
     #rustle = pyqtSignal(object)
@@ -298,11 +301,12 @@ class WinRustlerApp(QApplication):
     suggested = pyqtSignal(object)
     # Tells you of hwnds that are newly added and removed.
     # For use with something like `SyncToComboBox.sync()`.
-    windows_discovered = pyqtSignal(set, set)
+    #windows_discovered = pyqtSignal(set, set)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.windows = WindowDiscovery(self.windows_discovered.emit)
+        self.winset = WindowSet(self)
+        self.windisc = WindowDiscovery(self.winset.sync)
         self.discovery_timer = QTimer(self, interval=200, singleShot=True)  # refresh debounce
         self.hooker = WinHooker(self)
         # Use a windows event hook to determine when we might want to update
@@ -310,13 +314,9 @@ class WinRustlerApp(QApplication):
         self.hooker.event.connect(self.discovery_timer.start)
         # When this debounce timer fires, we tell the window discovery to do
         # update its list of windows.
-        self.discovery_timer.timeout.connect(self.windows.refresh)
+        self.discovery_timer.timeout.connect(self.windisc.refresh)
 
         self.suggesty = SuggestiveRustles(self)
-
-    def tell_windows_and_connect(self, slot):
-        slot(app.windows.discovered, set())
-        self.windows_discovered.connect(slot)
 
     def event(self, e):
         # This is here just so we can go into the interpreter in case SIGINT.
@@ -354,7 +354,7 @@ if __name__ == "__main__":
     qt_args = [sys.argv[0]] + args.qt_args
     app = WinRustlerApp(qt_args, quitOnLastWindowClosed=False)
     app.startTimer(100)  # So the interpreter can handle SIGINT
-    tray = RustlerTray(app)
+    tray = RustlerTray(app.winset)
     tray.show()
     tray.rustle.connect(app.do_rustling)
     app.rustled.connect(tray.show_rustle_message)
@@ -362,10 +362,6 @@ if __name__ == "__main__":
     app.setWindowIcon(tray.icon())
 
     if args.show:
-        from .widgets import ComposeMatch
-        #m = ComposeMatch()
-        #m.show()
-        #app.tell_windows_and_connect(m.sync_windows)
         tray.show_window()
 
     print("Lets go!")
