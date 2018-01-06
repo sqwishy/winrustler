@@ -1,7 +1,13 @@
 GW_OWNER = 4
 
-GWL_STYLE = -16
+# https://msdn.microsoft.com/en-us/library/ms633585%28VS.85%29.aspx
 GWL_EXSTYLE = -20
+GWLP_HINSTANCE = -6
+GWLP_HWNDPARENT = -8
+GWLP_ID = -12
+GWL_STYLE = -16
+GWLP_USERDATA = -21
+GWLP_WNDPROC = -4
 
 GCL_HICON = -14
 GCL_HICONSM = -34

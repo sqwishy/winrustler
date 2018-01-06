@@ -5,20 +5,21 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name = "winrustler",
-    version = "0.0.1",
+    name = "WinRustler",
+    version = "0.9.0",  # Keep in sync with winrustler/__init__.py
     author = "somebody",
     author_email = "somebody@froghat.ca",
-    description = ("thing for rustling windows in windows"),
-    license = "???",
+    description = ("Thing for rustling windows in Windows."),
+    license = "GPLv3",
     packages=['winrustler'],
-    long_description=read('README'),
+    long_description=read('README.rst'),
     classifiers=[
         "Banana :: Bread",
     ],
     entry_points={
         'console_scripts': [
             'winrustler=winrustler.__main__:main',
+            'winrustler-ui=winrustler.ui.__main__:main',
         ],
     },
 )

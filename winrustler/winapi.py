@@ -5,25 +5,34 @@ from ctypes import wintypes
 from winrustler.winconsts import *
 
 user32 = ctypes.windll.user32
+psapi = ctypes.windll.psapi
+
+try:
+    GetWindowLong = user32.GetWindowLongPtrW
+except AttributeError:
+    GetWindowLong = user32.GetWindowLongW
 
     
 def get_window_title(hwnd):
     # TODO GetWindowTextLength
     buf = ctypes.create_unicode_buffer(255)
+    # Can't really raise on zero because the window text might have no length
     user32.GetWindowTextW(hwnd, buf, 254)
     return buf.value
 
 
-import contextlib
-@contextlib.contextmanager
-def exception_diaper():
-    try:
-        yield
-    except (SystemExit, KeyboardInterrupt):
-        raise
-    except:
-        logger.exception("Unhandled exception", fn)
-        raise
+def get_window_application(hwnd):
+    hinstance = GetWindowLong(hwnd, GWLP_HINSTANCE)
+    if 0 == hinstance:
+        raise ctypes.WinError()
+    return hinstance
+
+
+def get_memes(hproc):
+    buf = ctypes.create_unicode_buffer(1024)
+    if 0 == psapi.GetModuleFileNameExW(..., hproc, buf, 1023):
+        raise ctypes.WinError()
+    return buf.value
 
 
 class WindowDiscovery(object):
