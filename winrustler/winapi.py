@@ -1,4 +1,6 @@
 import ctypes
+import enum
+import itertools
 import re
 from ctypes import wintypes
 
@@ -11,6 +13,17 @@ try:
     GetWindowLong = user32.GetWindowLongPtrW
 except AttributeError:
     GetWindowLong = user32.GetWindowLongW
+
+
+class Q(enum.Enum):
+    CASE_INSENSITIVE = 0x0
+    CASE_SENSITIVE = 0x1
+
+    EXACT = 0x0
+    #SUBSTRING = 0x10
+    RE = 0x20
+
+    DEFAULT = CASE_INSENSITIVE | EXACT
 
     
 def get_window_title(hwnd):
@@ -112,6 +125,33 @@ def search(hwnds, pat):
     elif not r:
         raise ValueError('No window with matching title found')
     return r[0]
+
+
+def query(hwnds, match, flags=Q.DEFAULT):
+    if flags != Q.DEFAULT:
+        raise NotImplementedError
+    for hwnd in hwnds:
+        if get_window_title(hwnd) == match:
+            yield hwnd
+
+
+class NoResults(ValueError):
+    pass
+
+
+class TooManyResults(ValueError):
+    pass
+
+
+def query_one(*args, **kwargs):
+    res = list(query(*args, **kwargs))
+    if len(res) == 1:
+        return res[0]
+    if len(res) == 0:
+        raise NoResults(res)
+    if len(res) == 2:
+        raise TooManyResults(res)
+    raise NotImplementedError(len(res))
 
 
 #def test_WindowDiscovery(app):

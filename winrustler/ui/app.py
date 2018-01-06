@@ -1,17 +1,18 @@
 import logging
 
+import attr
+
 from PyQt5.QtCore import (
         QObject,
         pyqtSignal,
         pyqtSlot,
         QTimer,
 )
-from PyQt5.QtWidgets import QApplication, QMenu
+from PyQt5.QtWidgets import QApplication
 
-from winrustler.winapi import WindowDiscovery
+from winrustler.winapi import WindowDiscovery, query_one
 from winrustler.ui.winapi import WinHooker
-from winrustler.ui.history import HistoryFeature
-
+from winrustler.ui.debug import show_exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -24,26 +25,22 @@ class WindowSet(QObject):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data = set()
+        self.hwnds = set()
 
     def tell_and_connect(self, slot):
-        slot(self.data, ())
+        slot(self.hwnds, ())
         self.discovered.connect(slot)
 
     def sync(self, adds, removes):
-        self.data.update(adds)
-        self.data.difference_update(removes)
+        self.hwnds.update(adds)
+        self.hwnds.difference_update(removes)
         self.discovered.emit(adds, removes)
 
 
 class WinRustlerApp(QApplication):
 
-    #rustle = pyqtSignal(object)
     rustled = pyqtSignal(object)
     suggested = pyqtSignal(object)
-    # Tells you of hwnds that are newly added and removed.
-    # For use with something like `SyncToComboBox.sync()`.
-    #windows_discovered = pyqtSignal(set, set)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -58,21 +55,19 @@ class WinRustlerApp(QApplication):
         # update its list of windows.
         self.discovery_timer.timeout.connect(self.windisc.refresh)
 
-        self.history_menu = QMenu(parent=None)
-        self.history_feature = HistoryFeature(self.winset, self.history_menu)
-        self.rustled.connect(self.history_feature.update_from_rustle)
-
     def event(self, e):
         # This is here just so we can go into the interpreter in case SIGINT.
         return super().event(e)
 
+    @pyqtSlot(object)
+    @show_exceptions
     def do_rustling(self, rustle):
-        try:
-            rustle.run()
-        except (SystemExit, KeyboardInterrupt):
-            raise
-        except:
-            logger.exception("Unhandled exception doing %s", rustle)
-        else:
-            self.rustled.emit(rustle)
+        rustle.run()
+        self.rustled.emit(rustle)
 
+    @pyqtSlot(object, object)
+    @show_exceptions
+    def attempt_rustle(self, window_title, rustle):
+        hwnd = query_one(self.winset.hwnds, window_title)
+        rustle = attr.evolve(rustle, hwnd=hwnd)
+        self.do_rustling(rustle)

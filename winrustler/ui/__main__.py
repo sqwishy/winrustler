@@ -1,9 +1,10 @@
 import sys
 import logging
 
-from PyQt5.QtWidgets import qApp
+from PyQt5.QtWidgets import qApp, QMenu
 
 from winrustler.ui.app import WinRustlerApp
+from winrustler.ui.history import HistoryFeature
 from winrustler.ui.widgets.tray import RustlerTray
 
 
@@ -33,10 +34,19 @@ def main():
     qt_args = [sys.argv[0]] + args.qt_args
     app = WinRustlerApp(qt_args, quitOnLastWindowClosed=False)
     app.startTimer(100)  # So the interpreter can handle SIGINT
-    tray = RustlerTray(app.winset, app.history_feature)
+
+    history_menu = QMenu(parent=None)
+    history_feature = HistoryFeature(app.winset, history_menu)
+    history_feature.load()
+    history_feature.rustle.connect(app.attempt_rustle)
+
+    tray = RustlerTray(app.winset, history_feature)
     tray.show()
     tray.rustle.connect(app.do_rustling)
+
     app.rustled.connect(tray.show_rustle_message)
+    app.rustled.connect(history_feature.update_from_rustle)
+
     app.setWindowIcon(tray.icon())
 
     if args.show:

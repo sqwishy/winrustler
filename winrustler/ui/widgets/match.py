@@ -8,7 +8,7 @@ from PyQt5.QtGui import QStandardItemModel
 
 from winrustler.winapi import test_window_match
 from winrustler.ui.widgets.sync import SyncToStandardItemModel
-from winrustler.ui.state import save_window_state, restore_window_state
+from winrustler.ui.state import save_window_geometry, restore_window_geometry
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +97,10 @@ class MatchDialog(QDialog):
         self._layout.addWidget(self._bb)
 
     def showEvent(self, event):
-        restore_window_state(self)
+        restore_window_geometry(self)
         return super().showEvent(event)
 
     def hideEvent(self, event):
-        save_window_state(self)
+        save_window_geometry(self)
         return super().hideEvent(event)
 

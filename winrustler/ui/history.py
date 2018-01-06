@@ -3,11 +3,12 @@ import logging
 import pytest
 import attr
 
-from PyQt5.QtCore import QObject, pyqtSlot
+from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
 from PyQt5.QtWidgets import QMenu, QAction
 
 from winrustler.winapi import get_window_title
 from winrustler.ui.debug import show_exceptions
+from winrustler.ui.state import program_settings, Serialization
 from winrustler.ui.winapi import get_window_icon
 
 logger = logging.getLogger(__name__)
@@ -30,8 +31,25 @@ class PastRustle(object):
                 and self.window_title == other.window_title
                 #and self.process_path == other.process_path
 
+    def save(self):
+        return attr.asdict(self)
+
+    @classmethod
+    def restore(cls, data):
+        #data['rustle'] = 
+        return cls(**data)
+
+
+from winrustler.fader import FadeWindow
+from winrustler.mover import MoveWindow
+serialization = Serialization()
+serialization.know(FadeWindow, 'fade')
+serialization.know(MoveWindow, 'move')
+serialization.know(PastRustle, 'past')
+
 
 class HistoryFeature(QObject):
+    rustle = pyqtSignal(object, object)
 
     def __init__(self, winset, menu, *args, **kwargs):
         super().__init__(menu, *args, **kwargs)
@@ -46,8 +64,29 @@ class HistoryFeature(QObject):
     @pyqtSlot(object, object)
     @show_exceptions
     def _update_engagement(self, new, lost):
-        #new
-        pass
+        for past in self.data:
+            pass
+
+    def save(self):
+        settings = program_settings()
+        logger.debug("Saving history.")
+        settings.setValue("history", serialization.savable(self.data))
+
+    def load(self):
+        settings = program_settings()
+        logger.debug("Loading history.")
+        for past in serialization.restored(settings.value("history", [])):
+            self.extend_history(past)
+
+    @pyqtSlot()
+    @show_exceptions
+    def clear_and_save(self):
+        self.clear()
+        self.save()
+
+    def clear(self):
+        while self.data:
+            self.menu.remove.removeAction(self.actions.pop(self.data.pop()))
 
     @pyqtSlot(object)
     @show_exceptions
@@ -57,6 +96,7 @@ class HistoryFeature(QObject):
         rustle = attr.evolve(rustle, hwnd=None)
         past = PastRustle(window_icon=icon, window_title=title, rustle=rustle)
         self.extend_history(past)
+        self.save()
 
     def extend_history(self, past):
         """ Inserts at the "beginning" of the menu, should be the most recent.
@@ -77,17 +117,16 @@ class HistoryFeature(QObject):
                 self.menu.insertAction(before, act)
         else:
             self.data.insert(0, past)
-            act = QAction(past.window_icon, past.window_title, parent=self.menu)
+            text = "{} - {}".format(past.window_title, past.rustle.summarized())
+            act = QAction(past.window_icon, text, parent=self.menu)
             act.triggered.connect(self._activate_past)
+            act.setData(past)
             self.menu.insertAction(before, act)
             self.actions[past] = act
 
             while len(self.data) > HISTORY_LENGTH:
-                extranious = self.actions.remove(self.data.pop())
+                extranious = self.actions.pop(self.data.pop())
                 self.menu.removeAction(extranious)
-
-        logger.debug("data=%r", self.data)
-        logger.debug("actions=%r", self.actions)
 
         return act
 
@@ -95,13 +134,28 @@ class HistoryFeature(QObject):
     @show_exceptions
     def _activate_past(self):
         act = self.sender()
-        print(act)
+        past = act.data()
+        self.rustle.emit(past.window_title, past.rustle)
 
 
 @pytest.fixture
 def app():
     from PyQt5.QtWidgets import QApplication
     return QApplication([])
+
+
+def test_save(app):
+    from winrustler.mover import MoveWindow
+    from winrustler.ui import icon
+    window_icon = icon('1f412.png')
+    rustle = MoveWindow(hwnd=None, x=1, y=2)
+    past = PastRustle(window_icon=window_icon, window_title="foobar", rustle=rustle)
+    settings = program_settings("-test")
+    settings.setValue("past", serialization.savable(past))
+
+    loaded_past = serialization.restored(settings.value("past"))
+    # The icons won't be equal, comparing them is hard...
+    assert past.rustle == loaded_past.rustle
 
 
 def test(app):

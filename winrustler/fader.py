@@ -43,3 +43,6 @@ class FadeWindow(object):
                     LWA_COLORKEY|LWA_ALPHA,
                     ):
                 raise ctypes.WinError()
+
+    def summarized(self):
+        return "Set opacity to {}/255 ({}%)".format(self.opacity, (100 * self.opacity)//255)

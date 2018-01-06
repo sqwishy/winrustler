@@ -54,3 +54,7 @@ class MoveWindow(object):
         else:
             x, y = self.x, self.y
         user32.SetWindowPos(self.hwnd, 0, x, y, 0, 0, SWP_NOSIZE)
+
+    def summarized(self):
+        what = "" if self.move_viewport else "frame "
+        return "Move {}to {}, {}".format(what, self.x, self.y)

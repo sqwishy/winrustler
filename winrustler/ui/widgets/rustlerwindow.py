@@ -14,7 +14,7 @@ from winrustler.ui.debug import show_exceptions
 from winrustler.ui.widgets.select import WindowSelect
 from winrustler.ui.widgets.rustle import MoveControls, FadeControls
 from winrustler.ui.widgets.match import MatchDialog
-from winrustler.ui.state import save_window_state, restore_window_state
+from winrustler.ui.state import save_window_geometry, restore_window_geometry
 
 
 class RustlerWindow(QDialog):
@@ -102,9 +102,9 @@ class RustlerWindow(QDialog):
             return tab.window_request(hwnd)
 
     def showEvent(self, event):
-        restore_window_state(self)
+        restore_window_geometry(self)
         return super().showEvent(event)
 
     def hideEvent(self, event):
-        save_window_state(self)
+        save_window_geometry(self)
         return super().hideEvent(event)
