@@ -35,7 +35,7 @@ def main():
     app = WinRustlerApp(qt_args, quitOnLastWindowClosed=False)
     app.startTimer(100)  # So the interpreter can handle SIGINT
 
-    history_menu = QMenu(parent=None)
+    history_menu = QMenu(parent=None, toolTipsVisible=True)
     history_feature = HistoryFeature(app.winset, history_menu)
     history_feature.load()
     history_feature.rustle.connect(app.attempt_rustle)
@@ -52,12 +52,12 @@ def main():
     if args.show:
         tray.show_window()
 
-    print("Lets go!")
+    logger.info("Lets go!")
     try:
         app.exec_()
     finally:
         tray.hide()
-    print("hey, we exited cleanly!")
+    logger.info("hey, we exited cleanly!")
 
 
 if __name__ == "__main__":

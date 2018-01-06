@@ -7,6 +7,7 @@ from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
 from PyQt5.QtWidgets import QMenu, QAction
 
 from winrustler.winapi import get_window_title
+from winrustler.winapi import query_one, NoResults, TooManyResults
 from winrustler.ui.debug import show_exceptions
 from winrustler.ui.state import program_settings, Serialization
 from winrustler.ui.winapi import get_window_icon
@@ -59,13 +60,24 @@ class HistoryFeature(QObject):
         self.menu.addAction("&Clear")
         self.data = []
         self.actions = {}  # Maps data to actions?
-        self.winset.tell_and_connect(self._update_engagement)
+        self.winset.tell_and_connect(self._refresh_engagement)
 
     @pyqtSlot(object, object)
     @show_exceptions
-    def _update_engagement(self, new, lost):
+    def _refresh_engagement(self, new, old):
         for past in self.data:
-            pass
+            act = self.actions[past]
+            try:
+                hwnd = query_one(self.winset.hwnds, past.window_title)
+            except NoResults as e:
+                act.setToolTip("No matching windows found.")
+                act.setEnabled(False)
+            except TooManyResult as es:
+                act.setToolTip("Multiple matching windows found.")
+                act.setEnabled(False)
+            else:
+                #act.setIcon(get_window_icon(hwnd)) # hrm...
+                act.setEnabled(True)
 
     def save(self):
         settings = program_settings()

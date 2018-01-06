@@ -8,9 +8,9 @@ from PyQt5.QtCore import (
         pyqtSlot,
         QTimer,
 )
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
-from winrustler.winapi import WindowDiscovery, query_one
+from winrustler.winapi import WindowDiscovery, query_one, NoResults, TooManyResults
 from winrustler.ui.winapi import WinHooker
 from winrustler.ui.debug import show_exceptions
 
@@ -68,6 +68,12 @@ class WinRustlerApp(QApplication):
     @pyqtSlot(object, object)
     @show_exceptions
     def attempt_rustle(self, window_title, rustle):
-        hwnd = query_one(self.winset.hwnds, window_title)
-        rustle = attr.evolve(rustle, hwnd=hwnd)
-        self.do_rustling(rustle)
+        try:
+            hwnd = query_one(self.winset.hwnds, window_title)
+        except NoResults as e:
+            QMessageBox.critical("No windows found named \"%s\"." % window_title)
+        except TooManyResult as es:
+            QMessageBox.critical("Multiple windows named \"%s\". Couldn't decide which to use." % window_title)
+        else:
+            rustle = attr.evolve(rustle, hwnd=hwnd)
+            self.do_rustling(rustle)

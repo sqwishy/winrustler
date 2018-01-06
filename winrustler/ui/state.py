@@ -18,6 +18,12 @@ IDENT_KEY = "__typename__"
 
 @attr.s()
 class Serialization():
+    """
+    Some crap for transforming attr classes into data types that can be
+    stored and restored into QSettings without PyQt5 being a dick and trying to
+    use pickling...
+    """
+
     _cls_idents = attr.ib(default=attr.Factory(dict))
     _ident_clss = attr.ib(default=attr.Factory(dict))
 
