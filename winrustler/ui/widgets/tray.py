@@ -51,7 +51,9 @@ class RustlerTray(QSystemTrayIcon):
         self.rustle_act = self.menu.addAction(self.rustle_icon, '&Rustle...', self.show_window)
         self.history_act = self.menu.addAction(self.alligator_icon, '&History')
         self.about_act = self.menu.addAction(self.about_icon, '&About...', self._about)
+        self.about_act.setMenuRole(QAction.AboutRole)
         self.exit_act = self.menu.addAction(self.exit_icon, '&Exit', self._exit)
+        self.about_act.setMenuRole(QAction.QuitRole)
 
         self.history_feature = history_feature
         self.history_act.setMenu(self.history_feature.menu)

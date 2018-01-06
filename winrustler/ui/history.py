@@ -57,7 +57,7 @@ class HistoryFeature(QObject):
         self.winset = winset
         self.menu = menu
         self.separator = self.menu.addSeparator()
-        self.menu.addAction("&Clear")
+        self.menu.addAction("&Clear", self.clear_and_save)
         self.data = []
         self.actions = {}  # Maps data to actions?
         self.winset.tell_and_connect(self._refresh_engagement)
@@ -98,7 +98,7 @@ class HistoryFeature(QObject):
 
     def clear(self):
         while self.data:
-            self.menu.remove.removeAction(self.actions.pop(self.data.pop()))
+            self.menu.removeAction(self.actions.pop(self.data.pop()))
 
     @pyqtSlot(object)
     @show_exceptions
