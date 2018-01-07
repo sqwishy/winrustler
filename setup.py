@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name = "WinRustler",
-    version = "0.9.1",  # Keep in sync with winrustler/__init__.py
+    version = "0.9.2",  # Keep in sync with winrustler/__init__.py
     author = "somebody",
     author_email = "somebody@froghat.ca",
     description = ("Thing for rustling windows in Windows."),
