@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 class WindowSet(QObject):
     """ This is very much like the WindowDiscovery but it has a signal ...
     """
-
     discovered = pyqtSignal(set, set)
 
     def __init__(self, *args, **kwargs):
@@ -38,7 +37,6 @@ class WindowSet(QObject):
 
 
 class WinRustlerApp(QApplication):
-
     rustled = pyqtSignal(object)
     suggested = pyqtSignal(object)
 
@@ -48,6 +46,9 @@ class WinRustlerApp(QApplication):
         self.windisc = WindowDiscovery(self.winset.sync)
         self.discovery_timer = QTimer(self, interval=200, singleShot=True)  # refresh debounce
         self.hooker = WinHooker(self)
+        # Some goofy meme because we get window events after the QObject is
+        # deleted but not the python object.
+        self.aboutToQuit.connect(self.hooker._unhook)
         # Use a windows event hook to determine when we might want to update
         # the list of windows. Connect it to the debounce timer.
         self.hooker.event.connect(self.discovery_timer.start)

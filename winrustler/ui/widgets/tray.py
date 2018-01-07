@@ -85,7 +85,8 @@ class RustlerTray(QSystemTrayIcon):
         msg = rustle_description(req)
         self.showMessage("I did something.", msg, icon)
 
-    def _window_destroyed(self, ptr):
+    @pyqtSlot()
+    def _window_destroyed(self):
         self.window = None
 
     def _about(self):

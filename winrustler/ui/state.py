@@ -1,20 +1,21 @@
 import logging
 
+import attr
+from attr.exceptions import NotAnAttrsClassError
+
 from PyQt5.QtCore import QSettings
 
 from winrustler.ui.debug import log_exceptions
 
+
 logger = logging.getLogger(__name__)
+
+IDENT_KEY = "__typename__"
 
 
 def program_settings(suffix=""):
     return QSettings("WinRustler Corp.", "WinRustler" + suffix)
 
-
-import attr
-from attr.exceptions import NotAnAttrsClassError
-
-IDENT_KEY = "__typename__"
 
 @attr.s()
 class Serialization():
@@ -22,6 +23,10 @@ class Serialization():
     Some crap for transforming attr classes into data types that can be
     stored and restored into QSettings without PyQt5 being a dick and trying to
     use pickling...
+
+    When we encounter an attrs class, we convert it to a dictionary and set
+    the key "__typename__" to some value we can use later to figure out what
+    constructor to use to restore the thing later.
     """
 
     _cls_idents = attr.ib(default=attr.Factory(dict))

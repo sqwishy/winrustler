@@ -61,6 +61,7 @@ class ComposeMatch(QWidget):
     def sync_windows(self, *args, **kwargs):  # Because slots and reference counting
         self._sync(*args, **kwargs)
 
+    @pyqtSlot(object)
     def _refilter(self, pattern):
         items = [self._model.item(row) for row in range(self._model.rowCount())]
         #hwnds = [item.data(role=Qt.UserRole) for item in items]
@@ -89,7 +90,6 @@ class MatchDialog(QDialog):
         #self._bb.clicked.connect(self._bb_on_clicked)
 
         self._apply = self._bb.addButton(QDialogButtonBox.Apply)
-        #self._apply_and_close = self._bb.addButton('&Apply && Close', QDialogButtonBox.AcceptRole)
         self._close = self._bb.addButton(QDialogButtonBox.Close)
 
         self._layout = QVBoxLayout(self)

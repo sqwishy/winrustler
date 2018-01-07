@@ -27,7 +27,7 @@ def main():
 
     import signal
     def quit_on_sigint(*args):
-        print("CTRL-C handled, quitting...")
+        logger.info("CTRL-C handled, quitting...")
         qApp.quit()
     signal.signal(signal.SIGINT, quit_on_sigint)
 
