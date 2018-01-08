@@ -27,8 +27,8 @@ class RustlerWindow(QDialog):
         self.setWindowTitle("WinRustler")
 
         self._select = WindowSelect(self)
-        self._match_select = QPushButton(icon('1f984.png'), "", self, shortcut="Alt+m")
-        self._match_select.clicked.connect(self._show_match)
+        #self._match_select = QPushButton(icon('1f984.png'), "", self, shortcut="Alt+m")
+        #self._match_select.clicked.connect(self._show_match)
 
         self._move = MoveControls(self)
         self._fade = FadeControls(self)
@@ -49,7 +49,7 @@ class RustlerWindow(QDialog):
         self._layout = QVBoxLayout(self)
         self._select_layout = QHBoxLayout()
         self._select_layout.addWidget(self._select, stretch=1)
-        self._select_layout.addWidget(self._match_select)
+        #self._select_layout.addWidget(self._match_select)
         self._layout.addLayout(self._select_layout)
         self._layout.addWidget(self._function_tab)
         self._layout.addWidget(self._bb)
