@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
 from winrustler.ui import icon
 from winrustler.ui.debug import show_exceptions
 from winrustler.ui.widgets.select import WindowSelect
-from winrustler.ui.widgets.rustle import MoveControls, FadeControls
+from winrustler.ui.widgets.rustle import MoveControls, FadeControls, BorderControls
 from winrustler.ui.widgets.match import MatchDialog
 from winrustler.ui.state import save_window_geometry, restore_window_geometry
 
@@ -32,10 +32,12 @@ class RustlerWindow(QDialog):
 
         self._move = MoveControls(self)
         self._fade = FadeControls(self)
+        self._border = BorderControls(self)
 
         self._function_tab = QTabWidget(self)
         self._function_tab.addTab(self._move, icon('1f4d0.png'), "M&ove")
         self._function_tab.addTab(self._fade, icon('1f47b.png'), "&Fade")
+        self._function_tab.addTab(self._border, icon('1f5bc.png'), "&Border")
 
         self._bb = QDialogButtonBox(self)
         self._bb.accepted.connect(self.accept)

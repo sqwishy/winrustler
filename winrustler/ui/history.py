@@ -43,9 +43,11 @@ class PastRustle(object):
 
 from winrustler.fader import FadeWindow
 from winrustler.mover import MoveWindow
+from winrustler.border import BorderWindow
 serialization = Serialization()
 serialization.know(FadeWindow, 'fade')
 serialization.know(MoveWindow, 'move')
+serialization.know(BorderWindow, 'border')
 serialization.know(PastRustle, 'past')
 
 

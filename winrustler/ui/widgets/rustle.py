@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
 
 from winrustler.mover import MoveWindow
 from winrustler.fader import FadeWindow
+from winrustler.border import BorderWindow
 
 
 class MoveControls(QWidget):
@@ -72,3 +73,22 @@ class FadeControls(QWidget):
 
     def window_request(self, hwnd):
         return FadeWindow(hwnd, self._opacity.value())
+
+
+class BorderControls(QWidget):
+
+    updated = pyqtSignal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._description = QLabel("<p>Add or remove a window border.</p>", parent=self)
+        self._have = QCheckBox("Add a border, leave unchecked to eliminate it", self)
+
+        self._layout = QFormLayout(self)
+        self._layout.addRow(self._description)
+        self._layout.addRow(self._have)
+        self.setLayout(self._layout)
+
+    def window_request(self, hwnd):
+        return BorderWindow(hwnd, have=self._have.checkState()==Qt.Checked)

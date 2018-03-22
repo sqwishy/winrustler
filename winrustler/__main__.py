@@ -27,7 +27,7 @@ from winrustler.core import REGISTRY
 from winrustler.winapi import WindowDiscovery, search
 
 # Imported for their side effects ...
-from winrustler import deborder, mover, fader
+from winrustler import border, mover, fader
 
 
 def main():
