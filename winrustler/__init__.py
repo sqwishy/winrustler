@@ -1,1 +1,1 @@
-__version__ = '0.9.3'  # Keep in sync with ../setup.py
+__version__ = '0.10.1'  # Keep in sync with ../setup.py
