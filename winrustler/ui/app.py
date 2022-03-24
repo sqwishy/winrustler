@@ -11,6 +11,7 @@ from PyQt5.QtCore import (
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from winrustler.winapi import WindowDiscovery, query_one, NoResults, TooManyResults
+from winrustler.ui import show_critical
 from winrustler.ui.winapi import WinHooker
 from winrustler.ui.debug import show_exceptions
 
@@ -51,7 +52,7 @@ class WinRustlerApp(QApplication):
         self.aboutToQuit.connect(self.hooker._unhook)
         # Use a windows event hook to determine when we might want to update
         # the list of windows. Connect it to the debounce timer.
-        self.hooker.event.connect(self.discovery_timer.start)
+        self.hooker.winevent.connect(self.discovery_timer.start)
         # When this debounce timer fires, we tell the window discovery to do
         # update its list of windows.
         self.discovery_timer.timeout.connect(self.windisc.refresh)
@@ -66,15 +67,15 @@ class WinRustlerApp(QApplication):
         rustle.run()
         self.rustled.emit(rustle)
 
-    @pyqtSlot(object, object)
+    @pyqtSlot(str, object)
     @show_exceptions
     def attempt_rustle(self, window_title, rustle):
         try:
             hwnd = query_one(self.winset.hwnds, window_title)
         except NoResults as e:
-            QMessageBox.critical("No windows found named \"%s\"." % window_title)
-        except TooManyResult as es:
-            QMessageBox.critical("Multiple windows named \"%s\". Couldn't decide which to use." % window_title)
+            show_critical("No windows found named \"%s\"." % window_title)
+        except TooManyResults as es:
+            show_critical("Multiple windows named \"%s\". Couldn't decide which to use." % window_title)
         else:
             rustle = attr.evolve(rustle, hwnd=hwnd)
             self.do_rustling(rustle)

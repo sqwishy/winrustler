@@ -1,5 +1,6 @@
 __pycache__
-egg-info
+WinRustler.egg-info
 .cache
 build
 dist
+venv

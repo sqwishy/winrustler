@@ -1,6 +1,5 @@
 import logging
 
-import pytest
 import attr
 
 from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
@@ -52,7 +51,7 @@ serialization.know(PastRustle, 'past')
 
 
 class HistoryFeature(QObject):
-    rustle = pyqtSignal(object, object)
+    rustle = pyqtSignal(str, object)
 
     def __init__(self, winset, menu, *args, **kwargs):
         super().__init__(menu, *args, **kwargs)
@@ -74,7 +73,7 @@ class HistoryFeature(QObject):
             except NoResults as e:
                 act.setToolTip("No matching windows found.")
                 act.setEnabled(False)
-            except TooManyResult as es:
+            except TooManyResults as es:
                 act.setToolTip("Multiple matching windows found.")
                 act.setEnabled(False)
             else:
@@ -152,10 +151,15 @@ class HistoryFeature(QObject):
         self.rustle.emit(past.window_title, past.rustle)
 
 
-@pytest.fixture
-def app():
-    from PyQt5.QtWidgets import QApplication
-    return QApplication([])
+try:
+    import pytest
+except ImportError:
+    pass
+else:
+    @pytest.fixture
+    def app():
+        from PyQt5.QtWidgets import QApplication
+        return QApplication([])
 
 
 def test_save(app):

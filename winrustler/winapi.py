@@ -149,9 +149,7 @@ def query_one(*args, **kwargs):
         return res[0]
     if len(res) == 0:
         raise NoResults(res)
-    if len(res) == 2:
-        raise TooManyResults(res)
-    raise NotImplementedError(len(res))
+    raise TooManyResults(res)
 
 
 #def test_WindowDiscovery(app):

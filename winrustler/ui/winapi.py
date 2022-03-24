@@ -38,7 +38,7 @@ def get_window_icon(hwnd):
 
 
 class WinHooker(QObject):
-    event = pyqtSignal()
+    winevent = pyqtSignal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -46,7 +46,7 @@ class WinHooker(QObject):
         @ctypes.WINFUNCTYPE(wintypes.HANDLE, wintypes.DWORD, wintypes.HWND,
                 wintypes.LONG, wintypes.LONG, wintypes.DWORD, wintypes.DWORD)
         def wineventproc(something, event, hwnd, no, body, cares):
-            self.event.emit()
+            self.winevent.emit()
         self.wineventproc = wineventproc
 
         logger.debug("New %r, setting up WinEventHook.", self)

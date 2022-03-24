@@ -2,7 +2,8 @@ import functools
 import logging
 import traceback
 
-from PyQt5.QtWidgets import QMessageBox
+
+from winrustler.ui import show_critical
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +29,6 @@ def show_exceptions(fn):
             raise
         except:
             logger.exception("Unhandled exception in %r", fn)
-            msg = QMessageBox(
-                    icon=QMessageBox.Critical,
-                    text="Unhandled exception in %r" % fn,
-                    parent=None,
-                    detailedText=traceback.format_exc())
-            msg.exec_()
+            show_critical("Unhandled exception in %r" % fn,
+                          details=traceback.format_exc())
     return inner

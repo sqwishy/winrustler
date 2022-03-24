@@ -26,9 +26,9 @@ ABOUT_TEXT = """\
 
 <p>Version: <b>{__version__}</b></p>
 
-<p><a href='https://bitbucket.org/sqwishy/winrustler'>bitbucket.org/sqwishy/winrustler</a></p>
+<p><a href='https://github.com/sqwishy/winrustler'>github.com/sqwishy/winrustler</a></p>
 
-<p>Project built with
+<p>Built with
 <a href='https://www.python.org/'>Python 3</a>,
 <a href='https://www.riverbankcomputing.com/software/pyqt/intro'>Qt 5</a>,
 <a href='https://www.qt.io/'>PyQt5</a>, and
